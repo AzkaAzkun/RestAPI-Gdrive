@@ -1,8 +1,10 @@
-package drive
+package store
 
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -10,7 +12,11 @@ import (
 	"google.golang.org/api/option"
 )
 
-func NewDriveService() (*drive.Service, error) {
+type Drive struct {
+	DriveService *drive.Service
+}
+
+func NewDrive() (*Drive, error) {
 	driveCredentialsFile := map[string]interface{}{
 		"type":                        os.Getenv("DRIVE_TYPE"),
 		"project_id":                  os.Getenv("DRIVE_PROJECT_ID"),
@@ -32,10 +38,32 @@ func NewDriveService() (*drive.Service, error) {
 
 	ctx := context.Background()
 	opt := option.WithCredentialsJSON(credentials)
+	// opt := option.WithCredentialsFile("key.json")
 
-	driveService, err := drive.NewService(ctx, opt)
+	DriveService, err := drive.NewService(ctx, opt)
 	if err != nil {
 		return nil, err
 	}
-	return driveService, nil
+	return &Drive{DriveService: DriveService}, nil
+}
+
+func UploadFile(service *drive.Service, filename string, content io.Reader) (string, error) {
+	folderId := os.Getenv("FOLDER_ID")
+
+	f := &drive.File{
+		MimeType: "application/octet-stream",
+		Name:     filename,
+		Parents:  []string{folderId},
+	}
+
+	file, err := service.Files.Create(f).Media(content).Do()
+
+	if err != nil {
+		return "", err
+	}
+	fmt.Printf("Haloooo\n")
+
+	link := fmt.Sprintf("https://drive.google.com/file/d/%s/view?usp=sharing", file.Id)
+	fmt.Println(filename + file.Id)
+	return link, nil
 }

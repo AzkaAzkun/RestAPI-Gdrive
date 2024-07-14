@@ -1,6 +1,7 @@
-package database
+package configs
 
 import (
+	"Upload-files-to-Google-Drive-simply-using-Golang/entity"
 	"fmt"
 	"os"
 
@@ -26,6 +27,8 @@ func NewDatabase() *gorm.DB {
 	if err != nil {
 		panic("Failed connect to database")
 	}
+
+	db.AutoMigrate(&entity.FileEntity{})
 
 	return db
 }
