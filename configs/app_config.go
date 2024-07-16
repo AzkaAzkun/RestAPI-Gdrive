@@ -4,6 +4,7 @@ import (
 	"Upload-files-to-Google-Drive-simply-using-Golang/api/handlers"
 	"Upload-files-to-Google-Drive-simply-using-Golang/api/repository"
 	"Upload-files-to-Google-Drive-simply-using-Golang/api/service"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -28,5 +29,6 @@ func NewApp(db *gorm.DB, app *fiber.App, drive *drive.Service) *AppConfig {
 }
 
 func (ap *AppConfig) Run() {
-	ap.app.Listen(":8080")
+	port := os.Getenv("FIBER_PORT")
+	ap.app.Listen(port)
 }

@@ -5,14 +5,13 @@ import (
 	"Upload-files-to-Google-Drive-simply-using-Golang/domain"
 	"Upload-files-to-Google-Drive-simply-using-Golang/entity"
 	"Upload-files-to-Google-Drive-simply-using-Golang/store"
+	"fmt"
 
 	"bytes"
-	"fmt"
 	"io"
 	"mime/multipart"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"google.golang.org/api/drive/v3"
 )
 
@@ -30,13 +29,20 @@ func NewFileService(app *fiber.App, fileRepository *repository.FileRepository, d
 	}
 }
 
-func (fs *FileService) GetsFile() ([]domain.FileDTO, error) {
-
-	return []domain.FileDTO{}, nil
+func (fs *FileService) GetsFile() ([]entity.FileEntity, error) {
+	data, err := fs.fileRepository.GetsFile()
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
-func (fs *FileService) GetFileById(id string) (domain.FileDTO, error) {
-	return domain.FileDTO{}, nil
+func (fs *FileService) GetFileById(id string) (entity.FileEntity, error) {
+	data, err := fs.fileRepository.GetsFileById(id)
+	if err != nil {
+		return data, err
+	}
+	return data, nil
 }
 
 func (fs *FileService) SaveFile(f *multipart.FileHeader, r domain.FileDTO) (domain.FileDTO, error) {
@@ -55,15 +61,15 @@ func (fs *FileService) SaveFile(f *multipart.FileHeader, r domain.FileDTO) (doma
 
 	readerfile := bytes.NewReader(filebytes)
 
-	link, err := store.UploadFile(fs.driveService, r.Filename, readerfile)
+	fileId, err := store.UploadFile(fs.driveService, r.Filename, readerfile)
 	if err != nil {
 		return data, err
 	}
 
-	fmt.Println(link)
+	link := fmt.Sprintf("https://drive.google.com/file/d/%s/view?usp=sharing", fileId)
 
 	data = domain.FileDTO{
-		ID:       uuid.New(),
+		ID:       fileId,
 		Filename: r.Filename,
 		Link:     link,
 	}
@@ -79,4 +85,55 @@ func (fs *FileService) SaveFile(f *multipart.FileHeader, r domain.FileDTO) (doma
 	}
 
 	return data, nil
+}
+
+func (fs *FileService) UpdateFile(f *multipart.FileHeader, r domain.FileDTO, id string) (domain.FileDTO, error) {
+	var data domain.FileDTO
+	file, err := f.Open()
+	if err != nil {
+		return data, err
+	}
+
+	defer file.Close()
+
+	filebytes, err := io.ReadAll(file)
+	if err != nil {
+		return data, err
+	}
+
+	readerfile := bytes.NewReader(filebytes)
+
+	if err := store.UpdateFile(fs.driveService, r.Filename, readerfile, id); err != nil {
+		return data, err
+	}
+
+	link := fmt.Sprintf("https://drive.google.com/file/d/%s/view?usp=sharing", id)
+
+	data = domain.FileDTO{
+		ID:       id,
+		Filename: r.Filename,
+		Link:     link,
+	}
+
+	model := entity.FileEntity{
+		ID:       data.ID,
+		Filename: data.Filename,
+		Link:     data.Link,
+	}
+
+	if err := fs.fileRepository.UpdateFile(model, id); err != nil {
+		return data, err
+	}
+
+	return data, nil
+}
+
+func (fs *FileService) DeleteFile(id string) error {
+	if err := store.DeleteFile(fs.driveService, id); err != nil {
+		return err
+	}
+	if err := fs.fileRepository.DeleteFile(id); err != nil {
+		return err
+	}
+	return nil
 }

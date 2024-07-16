@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -38,7 +37,6 @@ func NewDrive() (*Drive, error) {
 
 	ctx := context.Background()
 	opt := option.WithCredentialsJSON(credentials)
-	// opt := option.WithCredentialsFile("key.json")
 
 	DriveService, err := drive.NewService(ctx, opt)
 	if err != nil {
@@ -61,9 +59,22 @@ func UploadFile(service *drive.Service, filename string, content io.Reader) (str
 	if err != nil {
 		return "", err
 	}
-	fmt.Printf("Haloooo\n")
 
-	link := fmt.Sprintf("https://drive.google.com/file/d/%s/view?usp=sharing", file.Id)
-	fmt.Println(filename + file.Id)
-	return link, nil
+	return file.Id, nil
+}
+
+func UpdateFile(service *drive.Service, filename string, content io.Reader, fileId string) error {
+	f := &drive.File{
+		MimeType: "application/octet-stream",
+		Name:     filename,
+	}
+	_, err := service.Files.Update(fileId, f).Media(content).Do()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteFile(service *drive.Service, fileId string) error {
+	return service.Files.Delete(fileId).Do()
 }
